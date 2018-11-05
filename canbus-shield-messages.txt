@@ -1,0 +1,62 @@
+
+Turn Loopback on: D000101
+Turn Loopback off: D000100
+
+Set baudrate: D0101bb             bb-baudrate
+
+Set timeout: D0202mmnn            mm-milliseconds hi byte nn-milliseconds low byte
+
+EMERGENCY EVENT Message
+-----------------------
+Send DISPLAY_BUFFER_OVERFLOW: t0008xx00000000010000     xx-nodeid
+
+IDS
+---
+Send out broadcast IDS message: t080400000000
+
+Device Info requests
+--------------------
+canstate
+MIS 12-0 : t0804xx000C00           xx-nodeid
+candevice id
+MIS 12-1 : t0804xx000C01           xx-nodeid
+candevice resets 1
+MIS 12-2 : t0804xx000C02           xx-nodeid
+candevice resets 2
+MIS 12-3 : t0804xx000C03           xx-nodeid
+
+Device Config requests
+----------------------
+set canstate
+MCS 13-0 : t0806xx130D00aaff       xx-nodeid aa-active ff-filters
+
+Compass
+-------
+MIS 12-20 : t0804xx000C14          xx-nodeid
+MCS 13-20 : t0805xx0A0D14mm        xx-nodeid mm-magon/off
+
+Trimcontroller
+--------------
+MIS 12-50 : t0804xx000C32          xx-nodeid
+MCS 13-50 : t0808xx100D32bbttffss  xx-nodeid bb-button tt-trimcmd ff-flap ss-trimspd
+
+ADAHRS
+------
+equip enabled status
+MIS 12-30 : t0804xx000C1E          xx-nodeid
+MCS 13-30 : t0808xx080D1Effgg      xx-nodeid ff-flaghibyte gg-flaglobyte
+calibrate module
+MCS 13-31 : t0807xx1B0D1Fggaamm    xx-nodeid gg-gyrozero aa-accelref mm-magref
+install equipment
+MCS 13-32 : t0805xx0B0D2Fff        xx-nodeid ff-installflag
+upload GUID
+DUS 0x1 : t0808xx15030400000001    xx-nodeid
+
+ERRORS
+------
+first byte error code
+second byte device buffer
+third byte device code
+
+E090000 : CAN ERROR WARNING
+E010001 : CAN BUS PASSIVE
