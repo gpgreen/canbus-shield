@@ -135,12 +135,13 @@ add_definitions("-std=gnu99")
 ##########################################################################
 include_directories(
 	"${CMAKE_SOURCE_DIR}"
+	"${CMAKE_SOURCE_DIR}/../libs/avr_drivers/canlibrary"
 	"${CMAKE_SOURCE_DIR}/../libs/avr_drivers/drivers"
 	"${CMAKE_SOURCE_DIR}/../libs/avr_drivers/i2cmaster"
 	"${CMAKE_SOURCE_DIR}/../libs/avr_drivers/utils"
-	"${CMAKE_SOURCE_DIR}/../libs/libcanard"
-	"${CMAKE_SOURCE_DIR}/../libs/libcanard/drivers/avr"
-	"${CMAKE_SOURCE_DIR}/../libs/libcanard/drivers/avr/avr-can-lib"
+#	"${CMAKE_SOURCE_DIR}/../libs/libcanard"
+#	"${CMAKE_SOURCE_DIR}/../libs/libcanard/drivers/avr"
+#	"${CMAKE_SOURCE_DIR}/../libs/libcanard/drivers/avr/avr-can-lib"
 )
 
 ##################################################################################
@@ -160,15 +161,18 @@ add_avr_executable(
 # NOTE: It needs to be the elf target.
 ##################################################################################
 
+set(CAN_LIB "${CMAKE_AVRLIBS_PATH}/canlibrary/libavrcanlib-${AVR_MCU}.a")
+message(STATUS "avrcanlib: ${CAN_LIB}")
 set(DRIVER_LIB "${CMAKE_AVRLIBS_PATH}/drivers/libavrdrivers-${AVR_MCU}.a")
 message(STATUS "avrdriverslib: ${DRIVER_LIB}")
 set(I2CMASTER_LIB "${CMAKE_AVRLIBS_PATH}/i2cmaster/libavri2cmaster-${AVR_MCU}.a")
 message(STATUS "avri2cmaster: ${I2CMASTER_LIB}")
 set(UTILS_LIB "${CMAKE_AVRLIBS_PATH}/utils/libavrutils-${AVR_MCU}.a")
-message(STATUS "avrcanlib: ${UTILS_LIB}")
+message(STATUS "avrutilslib: ${UTILS_LIB}")
 
 avr_target_link_libraries(
 	canbus-shield
+	${CAN_LIB}
 	${DRIVER_LIB}
 	${I2CMASTER_LIB}
 	${UTILS_LIB}

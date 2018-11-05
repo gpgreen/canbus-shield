@@ -55,12 +55,12 @@ volatile uint8_t errcode;
 volatile uint32_t jiffies;
 
 // the can stack initialization struct
-can_init_t g_ci;
+can_init_t can_settings;
 
 /* struct for mcp2515 device specific data */
-struct mcp2515_dev_priv g_mcp2515_dev_priv = {
+struct mcp2515_dev g_mcp2515_dev = {
 	// settings structure
-	.settings = &g_ci,
+	.settings = &can_settings,
 	// interrupt control register, controlling edge detection
 	.int_dir_reg = &EICRA,
 	// mask for interrupt control register for edge detection, falling edge
@@ -77,8 +77,30 @@ struct mcp2515_dev_priv g_mcp2515_dev_priv = {
 	.port_pin = _BV(2),
 };
 
+/*-----------------------------------------------------------------------*/
+
+// handles can errors
+static void canbus_can_error(struct can_device* dev, const can_error_t* err)
+{
+	printf_P(PSTR("E%02x%02x%02x\n"), (uint8_t)err->error_code,
+			 (uint8_t)err->dev_buffer,
+			 (uint8_t)err->dev_code);
+	if (err->error_code == CAN_BUS_OFF)
+		g_state = BUS_OFF_ON;
+	else if (err->error_code == CAN_BUS_PASSIVE)
+		g_state = BUS_PASSIVE_ON;
+}
+
+// the can device
+struct can_device candev = {
+    .priv_dev = &g_mcp2515_dev,
+    .devno = 1,
+    .handle_error_fn = canbus_can_error,
+};
+
 // canserial initialization struct
 struct can_serial g_can_serial = {
+    .candev = &candev,
 	.can_log_recv_message = log_recv,
 	.can_log_send_message = log_send,
 	.can_log_serial_command = log_canserial_cmd,
@@ -87,6 +109,7 @@ struct can_serial g_can_serial = {
 	.can_log_failed_device_command = log_failed_cmd,
 	.can_send_message = can_send_message,
 	.can_device_command = can_device_command,
+    .can_handle_error = canbus_can_error,
 };
 
 /*-----------------------------------------------------------------------*/
@@ -112,20 +135,6 @@ offline(void)
 			on = on? 0 : -1;
 		}
 	}
-}
-
-/*-----------------------------------------------------------------------*/
-
-// handles can errors
-static void can_error(const can_error_t* err)
-{
-	printf_P(PSTR("E%02x%02x%02x\n"), (uint8_t)err->error_code,
-			 (uint8_t)err->dev_buffer,
-			 (uint8_t)err->dev_code);
-	if (err->error_code == CAN_BUS_OFF)
-		g_state = BUS_OFF_ON;
-	else if (err->error_code == CAN_BUS_PASSIVE)
-		g_state = BUS_PASSIVE_ON;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -250,21 +259,18 @@ ioinit(void)
 	puts_P(PSTR("spi initialized."));
 
 	// setup the can initialization struct
-	g_ci.speed_setting = CAN_250KBPS;
-	g_ci.loopback_on = -1;      /* loopback on */
-	g_ci.tx_wait_ms = 20;
+	can_settings.speed_setting = CAN_250KBPS;
+	can_settings.loopback_on = -1;      /* loopback on */
+	can_settings.tx_wait_ms = 20;
 
-	// set the error function
-	mcp2515_dev.handle_error_fn = can_error;
-	
-	errcode = can_init(&g_ci, &mcp2515_dev);
+	errcode = can_init(&can_settings, &candev);
 	if (errcode != CAN_OK)
 		offline();
 
 	puts_P(PSTR("can initialized."));
 	
 	// self test the CAN stack
-	errcode = can_self_test();
+	errcode = can_self_test(&candev);
 	if (errcode != CAN_OK)
 		offline();
 
@@ -305,7 +311,7 @@ main(void)
             g_timer2_set = 0;
 			if (g_state == ACTIVE && ++count >= 10) {
 				uint8_t tx,rx;
-				can_error_counts(&tx, &rx);
+				can_error_counts(&candev, &tx, &rx);
                 // print the error counts if either are not 0
                 if(tx !=0 || rx != 0)
                     printf_P(PSTR("can errors tx:%u rx:%u\n"), tx, rx);
@@ -315,12 +321,12 @@ main(void)
 		
 		// clear the interrupt flags on the device
 		int status;
-		if(can_handle_interrupt(&status) == CAN_INTERRUPT) {
+		if(can_handle_interrupt(&candev, &status) == CAN_INTERRUPT) {
 
 			can_msg_t incoming;
 			uint8_t status = CAN_OK;
 			for (int i=0; i<4 && status == CAN_OK; ++i) {
-				status = can_read_message(&incoming);
+				status = can_read_message(&candev, &incoming);
 				if (status == CAN_OK)
 					// do something with any incoming msgs
 					canserial_handle_recv_message(&g_can_serial, &incoming);
