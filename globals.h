@@ -4,9 +4,6 @@
 #include <inttypes.h>
 #include "can.h"
 
-// the can stack initialization struct
-extern can_init_t g_ci;
-
 // error number
 extern volatile uint8_t errcode;
 

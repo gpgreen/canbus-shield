@@ -21,7 +21,8 @@ cmake_minimum_required(VERSION 2.8)
 ##################################################################################
 set(AVR_UPLOADTOOL avrdude)
 set(AVR_PROGRAMMER stk500v1)
-set(AVR_UPLOADTOOL_PORT usb)
+set(AVR_UPLOADTOOL_PORT /dev/ttyACM0)
+set(AVR_UPLOADTOOL_OPTIONS -F)
 # AVR and fuses needs to be set
 set(AVR_MCU atmega328p)
 set(AVRDUDE_MCU m328p)

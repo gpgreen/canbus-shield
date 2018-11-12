@@ -1,7 +1,7 @@
 /*
  * Define registers and pins
- * AtMega168
- * arduino diecimila board
+ * AtMega328p
+ * arduino uno board
  * with SK Pang CAN-BUS shield
  */
 #ifndef DEFS_H_
@@ -17,20 +17,19 @@
 
 /*-----------------------------------------------------------------------*/
 
-/* functions available */
-#define HAVE_UART_DEVICE                1
-
+/* uart */
 /* size of fifo buffers */
-#define FIFO_SIZE                       64
+#define TX_FIFO_SIZE                    128
+#define RX_FIFO_SIZE                    128
 
 /* define baud rate for serial comm */
-#define BAUD                            115200
+#define BAUD                            230400
 
 /*-----------------------------------------------------------------------*/
 
 /* DEBUGGING */
 
-/*#define MCPDEBUG (1)*/
+#define MCPDEBUG                        1
 /*#define CANSERIALDEBUG (1)*/
 /*#define CANDEBUG (1)*/
 

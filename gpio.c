@@ -10,7 +10,7 @@ void gpio_setup(void)
 	DDRB |= _BV(PB0);
 	
 	// MCP2515 hardware
-	
+
 	// CAN_CS, output
 	DDR_CANCS |= _BV(P_CANCS);
 	PORT_CANCS |= _BV(P_CANCS);
