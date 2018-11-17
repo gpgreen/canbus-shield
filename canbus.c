@@ -25,6 +25,7 @@
 #include <util/delay.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "globals.h"
 #include "gpio.h"
 #include "uart.h"
@@ -33,6 +34,10 @@
 #include "mcp2515.h"
 #include "fifo.h"
 #include "canserial.h"
+
+// io
+static FILE uartstream = FDEV_SETUP_STREAM(uart_putchar, uart_getchar,
+                                           _FDEV_SETUP_RW);
 
 // uart fifo buffers
 uint8_t tx_fifo_buffer[TX_FIFO_SIZE];
@@ -53,7 +58,7 @@ volatile uint8_t errcode;
 // the can stack initialization struct
 can_init_t can_settings = {
     .speed_setting = CAN_250KBPS,
-    .loopback_on = 1,
+    .loopback_on = 0,
     .tx_wait_ms = 20,
 };
 
@@ -125,37 +130,6 @@ struct can_serial g_can_serial = {
 
 /*-----------------------------------------------------------------------*/
 
-// output stuff to uart
-
-static char buf[256];
-void uart_printf(const char* str, ...)
-{
-    va_list argptr;
-    va_start(argptr, str);
-    vsnprintf(buf, 256, str, argptr);
-    char* p = buf;
-    while (*p != 0)
-    {
-        uart_putchar(*p, stdout);
-        ++p;
-    }
-}
-
-void uart_printf_P(const char* str, ...)
-{
-    va_list argptr;
-    va_start(argptr, str);
-    vsnprintf_P(buf, 256, str, argptr);
-    char* p = buf;
-    while (*p != 0)
-    {
-        uart_putchar(*p, stdout);
-        ++p;
-    }
-}
-
-/*-----------------------------------------------------------------------*/
-
 // main entry for showing board failure
 // blinks the errorcode then a longer pause
 void
@@ -216,7 +190,7 @@ handle_uart(void)
 	// check for uart error
 	uint8_t err = uart_error();
 	if(err) {
-		uart_printf_P(PSTR("uart error:%x\n"), err);
+		printf_P(PSTR("uart error:%x\n"), err);
 		return;
 	}
 	
@@ -235,7 +209,7 @@ handle_uart(void)
 		return;
 	
 #ifdef CANSERIALDEBUG
-	uart_printf("new bytes:%d count:%d\n", bytes, fifo_count(&s_fifo));
+	printf("new bytes:%d count:%d\n", bytes, fifo_count(&s_fifo));
 #endif
 	
 	// save the read state of the fifo, so we can adjust for how many
@@ -247,7 +221,7 @@ handle_uart(void)
 	uint8_t consumed = canserial_parse_input_buffer(&g_can_serial,
                                                     &s_fifo);
 #ifdef CANSERIALDEBUG
-	uart_printf("parsed:%d\n", consumed);
+	printf("parsed:%d\n", consumed);
 #endif
 	// adjust the read state of the fifo for how many bytes actually consumed
 	s_fifo.idx_r = oldr + consumed;
@@ -256,7 +230,7 @@ handle_uart(void)
 		s_fifo.idx_r -= FIFO_BUFSIZE;
 
 #ifdef CANSERIALDEBUG
-	uart_printf("r:%d w:%d c:%d\n", s_fifo.idx_r, s_fifo.idx_w, s_fifo.count);
+	printf("r:%d w:%d c:%d\n", s_fifo.idx_r, s_fifo.idx_w, s_fifo.count);
 #endif
 }
 
@@ -290,30 +264,30 @@ ioinit(void)
               RX_FIFO_SIZE, rx_fifo_buffer);
     sei();
 
-	uart_printf_P(PSTR("\nCanbus Shield\n"));
-	uart_printf_P(PSTR("Hardware: %d Software: %d\n-------------------------\n"),
-                  HARDWARE_REVISION, SOFTWARE_REVISION);
+	printf_P(PSTR("\nCanbus Shield\n"));
+	printf_P(PSTR("Hardware: %d Software: %d.%d\n-------------------------\n"),
+             HARDWARE_REVISION, APP_VERSION_MAJOR, APP_VERSION_MINOR);
 
     
     // spi needs to be setup first
 	if (spi_init(2) == SPI_FAILED)
 		failed(1);
 
-	uart_printf_P(PSTR("spi initialized\n"));
+	printf_P(PSTR("spi initialized\n"));
 
 	// setup can
 	errcode = can_init(&can_settings, &candev);
 	if (errcode != CAN_OK)
         failed(2);
 
-	uart_printf_P(PSTR("can initialized\n"));
+	printf_P(PSTR("can initialized\n"));
 	
 	// self test the CAN stack
 	errcode = can_self_test(&candev);
 	if (errcode != CAN_OK)
 		failed(3);
 
-	uart_printf_P(PSTR("can self-test complete.\nioinit complete\n"));
+	printf_P(PSTR("can self-test complete.\nioinit complete\n"));
     led1_off();
 }
 
@@ -324,9 +298,13 @@ main(void)
 {
 	g_state = ACTIVE;
 	
+    stdout = &uartstream;
+    stderr = &uartstream;
+    stdin = &uartstream;
+
 	ioinit();
 
-	uart_printf_P(PSTR("Starting main loop\n"));
+	printf_P(PSTR("Starting main loop\n"));
 
     while(1)
     {
@@ -346,7 +324,7 @@ main(void)
 				can_error_counts(&candev, &tx, &rx);
                 // print the error counts if either are not 0
                 if(tx !=0 || rx != 0)
-                    uart_printf_P(PSTR("can errors tx:%u rx:%u\n"), tx, rx);
+                    printf_P(PSTR("can errors tx:%u rx:%u\n"), tx, rx);
 				count = 0;
 			}
         }

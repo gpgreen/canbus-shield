@@ -12,8 +12,9 @@
 /*
  * Hardware and software revisions
  */
-#define HARDWARE_REVISION 1
-#define SOFTWARE_REVISION 1
+#define HARDWARE_REVISION               1
+#define APP_VERSION_MAJOR               0
+#define APP_VERSION_MINOR               1
 
 /*-----------------------------------------------------------------------*/
 
@@ -29,14 +30,14 @@
 
 /* DEBUGGING */
 
-#define MCPDEBUG                        1
-/*#define CANSERIALDEBUG (1)*/
-/*#define CANDEBUG (1)*/
+/*#define MCPDEBUG                        1*/
+/*#define CANSERIALDEBUG                  1*/
+/*#define CANDEBUG                        1*/
 
 /*-----------------------------------------------------------------------*/
-#define MCP2515FILTER                   (1)
+#define MCP2515FILTER                   1
 /* MCP clock */
-#define MCP2515_16MHZ                   (1)
+#define MCP2515_16MHZ                   1
 
 /* FIFO lengths */
 #define MCP_RECVBUFLEN                  10
