@@ -31,6 +31,7 @@
 #include "uart.h"
 #include "spi.h"
 #include "timer.h"
+#include "timer1.h"
 #include "mcp2515.h"
 #include "fifo.h"
 #include "canserial.h"
@@ -47,13 +48,44 @@ uint8_t rx_fifo_buffer[RX_FIFO_SIZE];
 enum canbus_state g_state;
 
 // 2 Hz timer flag
-volatile uint8_t g_timer2_set;
+volatile uint8_t g_timer2hz_set;
 
 // 80 Hz timer flag
-volatile uint8_t g_timer80_set;
+volatile uint8_t g_timer80hz_set;
 
-// global error code
-volatile uint8_t errcode;
+/*-----------------------------------------------------------------------*/
+
+void timer1_compareA(void)
+{
+    g_timer80hz_set = 1;
+    
+    static int count = 0;
+    if (++count == 40)
+    {
+        g_timer2hz_set = 1;
+        count = 0;
+        static int on = 0;
+        if (on)
+        {
+            led1_off();
+            on = 0;
+        } else {
+            led1_on();
+            on = 1;
+        }
+    }
+}
+
+static timer1_init_t timer1_settings = {
+    .scale = CLK8,
+    // compare A triggers at 80Hz
+    .compareA_cb = timer1_compareA,
+    .compareA_val = (F_CPU / 80 / 8),
+    .compareB_cb = 0,
+    .compareB_val = 0,
+};
+
+/*-----------------------------------------------------------------------*/
 
 // the can stack initialization struct
 can_init_t can_settings = {
@@ -143,9 +175,9 @@ failed(uint8_t err)
 	while (1)
     {
 		// 80 hz timer
-		if (g_timer80_set)
+		if (g_timer80hz_set)
 		{
-			g_timer80_set = 0;
+			g_timer80hz_set = 0;
             if (delay--)
                 continue;
             delay = 20;
@@ -245,16 +277,7 @@ ioinit(void)
 
 	timer_init();
 
-    // setup the 80,2 Hz timer
-    // WGM12 = 1, CTC, OCR1A
-    // CS11 = 1, fosc / 8
-    TCCR1B = _BV(CS11);
-    // set interrupt to happen at 80Hz
-	OCR1A = (F_CPU / 80 / 8);
-	// set interrupt to happen at 1000Hz
-	OCR1B = (F_CPU / 1000 / 8);
-    // set OC interrupt 1A
-    TIMSK1 = _BV(OCIE1A);
+    timer1_init(&timer1_settings);
     
     // initialize the parsing fifo
     fifo_init(&s_fifo, FIFO_BUFSIZE, fifo_buf);
@@ -276,7 +299,7 @@ ioinit(void)
 	printf_P(PSTR("spi initialized\n"));
 
 	// setup can
-	errcode = can_init(&can_settings, &candev);
+	int errcode = can_init(&can_settings, &candev);
 	if (errcode != CAN_OK)
         failed(2);
 
@@ -309,16 +332,16 @@ main(void)
     while(1)
     {
 		// 80 Hz timer
-		if (g_timer80_set)
+		if (g_timer80hz_set)
 		{
-			g_timer80_set = 0;
+			g_timer80hz_set = 0;
 		}
 
         // 2 Hz timer
-        if (g_timer2_set)
+        if (g_timer2hz_set)
         {
 			static int count = 0;
-            g_timer2_set = 0;
+            g_timer2hz_set = 0;
 			if (g_state == ACTIVE && ++count >= 10) {
 				uint8_t tx,rx;
 				can_error_counts(&candev, &tx, &rx);
@@ -347,30 +370,3 @@ main(void)
     }
     return 0;
 }
-
-//-----------------------------------------------------------------------
-//
-// Timer compare output 1A interrupt
-//
-//-----------------------------------------------------------------------
-ISR(TIMER1_COMPA_vect)
-{
-    g_timer80_set = 1;
-    static int on = 0;
-	static uint8_t count = 0;
-	if (++count >= 40) {
-		g_timer2_set = 1;
-		count = 0;
-        if (on)
-        {
-            led1_off();
-            on = 0;
-        } else {
-            led1_on();
-            on = 1;
-        }
-	}
-}
-
-/*-----------------------------------------------------------------------*/
-
