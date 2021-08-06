@@ -7,7 +7,9 @@ extern void gpio_setup(void);
 
 extern void led1_on(void);
 extern void led1_off(void);
+extern void led1_toggle(void);
 extern void led2_on(void);
 extern void led2_off(void);
+extern void led2_toggle(void);
 
 #endif	// GPIO_H_

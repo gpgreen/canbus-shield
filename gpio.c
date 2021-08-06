@@ -1,4 +1,4 @@
-#include <inttypes.h>
+#include <stdint.h>
 #include <avr/io.h>
 
 #include "gpio.h"
@@ -29,6 +29,11 @@ led1_off(void)
 {
 	PORTB &= ~_BV(PB0);
 }
+void
+led1_toggle(void)
+{
+	PORTB ^= _BV(PB0);
+}
 
 /*-----------------------------------------------------------------------*/
 
@@ -42,5 +47,10 @@ void
 led2_off(void)
 {
 	PORTD &= ~_BV(PD7);
+}
+void
+led2_toggle(void)
+{
+	PORTD ^= _BV(PD7);
 }
 

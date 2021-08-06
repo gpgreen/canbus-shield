@@ -162,47 +162,35 @@ struct can_serial g_can_serial = {
 
 /*-----------------------------------------------------------------------*/
 
-// main entry for showing board failure
-// blinks the errorcode then a longer pause
+// panic the firmware
+// blinks 4 times at 10 hz then a long pause then repeat
+// the led is normally part of SPI (SCK)
 void
-failed(uint8_t err)
+panic(void)
 {
-	uint8_t count = 0;
-	uint8_t pause = 0;
-    int delay = 2;
-	led1_on();
-    led2_on();
-	while (1)
-    {
-		// 80 hz timer
-		if (g_timer80hz_set)
+    uint8_t count = 0;
+    uint8_t major_count = 0;
+    uint8_t minor_count = 0;
+    // turn off spi, so led will work
+    SPCR = 0;
+    DDR_SPI |= _BV(P_SCK);
+    led1_on();
+	while (1) {
+		if (g_timer2hz_set)
 		{
-			g_timer80hz_set = 0;
-            if (delay--)
-                continue;
-            delay = 20;
-			if (pause)
-            {
-				--pause;
-			}
-            else
-            {
-				if (bit_is_set(count, 0))
-                {
-                    led1_off();
-					led2_off();
+            if (++count == 4) {
+                count = 0;
+                if (major_count == 0) {
+                    led1_toggle();
+                    if (++minor_count == 7)
+                        major_count++;
+                } else if (major_count++ == 4) {
+                    major_count = 0;
+                    minor_count = 0;
+                    led1_on();
                 }
-                else
-                {
-					led1_on();
-                    led2_on();
-                }
-				if (++count == err * 2)
-                {
-					pause = 40;
-					count = 0;
-				}
-			}
+            }
+            g_timer2hz_set = 0;
 		}
 	}
 }
@@ -294,21 +282,21 @@ ioinit(void)
     
     // spi needs to be setup first
 	if (spi_init(2) == SPI_FAILED)
-		failed(1);
+		panic();
 
 	printf_P(PSTR("spi initialized\n"));
 
 	// setup can
 	int errcode = can_init(&can_settings, &candev);
 	if (errcode != CAN_OK)
-        failed(2);
+        panic();
 
 	printf_P(PSTR("can initialized\n"));
 	
 	// self test the CAN stack
 	errcode = can_self_test(&candev);
 	if (errcode != CAN_OK)
-		failed(3);
+		panic();
 
 	printf_P(PSTR("can self-test complete.\nioinit complete\n"));
     led1_off();
