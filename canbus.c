@@ -16,12 +16,24 @@
  *
  * D000101 - turn loopback mode on
  *
+ * NAME for NMEA2000
+ * identity[21] = 
+ * company[11] = 1961
+ * ecu instance[3] = 0
+ * function instance[5] = 0
+ * function[8] = 10 (system tools)
+ * reserved[1] = 0
+ * vehicle system[7] = 36 (sailing)
+ * vehicle system instance[4] = 0
+ * industry group[3] = 4 (marine)
+ * arbitrary address capable = 0
  * -------------------------------------------------------------------------
  */
 
 #include "defs.h"
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
+#include <avr/boot.h>
 #include <util/delay.h>
 #include <string.h>
 #include <stdlib.h>
@@ -53,6 +65,21 @@ volatile uint8_t g_timer2hz_set;
 // 80 Hz timer flag
 volatile uint8_t g_timer80hz_set;
 
+// the serial number of the atmega328p
+static uint8_t serial_number[9];
+
+// the NAME of this device
+static uint8_t nmea2000_name[8] = {
+    0,                          /* identity 0-7 */
+    0,                          /* identity 8-15 */
+    (1961 & 0x7) << 5,          /* identity 16-20, company 0-2 */
+    (1961 & 0xf8) >> 3,         /* company 3-10 */
+    0,                          /* ecu instance 0-2, function instance 0-4 */
+    10,                         /* function 0-7 */
+    36,                         /* reserved, vehicle system 0-6 */
+    4 << 4,                     /* vehicle system instance 0-3, industry group 0-2 arb address */
+};
+
 /*-----------------------------------------------------------------------*/
 
 void timer1_compareA(void)
@@ -64,15 +91,7 @@ void timer1_compareA(void)
     {
         g_timer2hz_set = 1;
         count = 0;
-        static int on = 0;
-        if (on)
-        {
-            led1_off();
-            on = 0;
-        } else {
-            led1_on();
-            on = 1;
-        }
+        led1_toggle();
     }
 }
 
@@ -122,8 +141,10 @@ static void canbus_can_error(struct can_device* dev, const can_error_t* err)
 	printf_P(PSTR("E%02x%02x%02x\n"), (uint8_t)err->error_code,
 			 (uint8_t)err->dev_buffer,
 			 (uint8_t)err->dev_code);
-	if (err->error_code == CAN_BUS_OFF)
+	if (err->error_code == CAN_BUS_OFF) {
 		g_state = BUS_OFF_ON;
+        panic();
+    }
 	else if (err->error_code == CAN_BUS_PASSIVE)
 		g_state = BUS_PASSIVE_ON;
 }
@@ -146,10 +167,18 @@ struct can_device candev = {
     .clear_tx_buffers = mcp2515_clear_tx_buffers,
 };
 
+/*-----------------------------------------------------------------------*/
+
+void canbus_shield_log_recv(const can_msg_t* msg)
+{
+    led2_on();
+    log_recv(msg);
+}
+
 // canserial initialization struct
 struct can_serial g_can_serial = {
     .candev = &candev,
-	.can_log_recv_message = log_recv,
+	.can_log_recv_message = canbus_shield_log_recv,
 	.can_log_send_message = log_send,
 	.can_log_serial_command = log_canserial_cmd,
 	.can_log_failed_serial_command = log_failed_cmd,
@@ -163,8 +192,7 @@ struct can_serial g_can_serial = {
 /*-----------------------------------------------------------------------*/
 
 // panic the firmware
-// blinks 4 times at 10 hz then a long pause then repeat
-// the led is normally part of SPI (SCK)
+// blinks 4 times at short interval then a long pause then repeat
 void
 panic(void)
 {
@@ -175,6 +203,7 @@ panic(void)
     SPCR = 0;
     DDR_SPI |= _BV(P_SCK);
     led1_on();
+    led2_on();
 	while (1) {
 		if (g_timer2hz_set)
 		{
@@ -275,30 +304,59 @@ ioinit(void)
               RX_FIFO_SIZE, rx_fifo_buffer);
     sei();
 
-	printf_P(PSTR("\nCanbus Shield\n"));
-	printf_P(PSTR("Hardware: %d Software: %d.%d\n-------------------------\n"),
-             HARDWARE_REVISION, APP_VERSION_MAJOR, APP_VERSION_MINOR);
 
     
     // spi needs to be setup first
 	if (spi_init(2) == SPI_FAILED)
 		panic();
 
-	printf_P(PSTR("spi initialized\n"));
-
 	// setup can
 	int errcode = can_init(&can_settings, &candev);
 	if (errcode != CAN_OK)
         panic();
-
-	printf_P(PSTR("can initialized\n"));
 	
 	// self test the CAN stack
 	errcode = can_self_test(&candev);
 	if (errcode != CAN_OK)
 		panic();
 
-	printf_P(PSTR("can self-test complete.\nioinit complete\n"));
+    // get the signature bytes of the device
+	printf_P(PSTR("\ncanbus-shield\n"));
+    printf_P(PSTR("serial:"));
+    for (int i=0; i<10; i++) {
+        int j = i;
+        if (i == 6)
+            continue;
+        if (i > 6)
+            j--;
+        int addr = 0x0e + i;
+        serial_number[j] = boot_signature_byte_get(addr);
+        printf("%02x ", serial_number[j]);
+    }
+    putchar('\n');
+
+    // put in identity number in name, from serial_number
+    // 8 bits byte 0
+    nmea2000_name[0] = serial_number[0] & 0x7;
+    nmea2000_name[0] |= (serial_number[1] & 0x7) << 3;
+    nmea2000_name[0] |= (serial_number[2] & 0x3) << 6;
+    // 8 bits byte 1
+    nmea2000_name[1] = (serial_number[3] & 0x3);
+    nmea2000_name[1] |= (serial_number[4] & 0x7) << 3;
+    nmea2000_name[1] |= (serial_number[5] & 0x3) << 6;
+    // first 5 bits byte 2
+    nmea2000_name[2] |= (serial_number[6] & 0x7);
+    nmea2000_name[2] |= (serial_number[7] & 0x3) << 3;
+
+    printf_P(PSTR("NMEA2000 NAME: "));
+    for (int i=0; i<8; i++)
+        printf_P(PSTR("%02x "), nmea2000_name[i]);
+    putchar('\n');
+
+    printf_P(PSTR("Hardware: %d Software: %d.%d\n-------------------------\n"),
+             HARDWARE_REVISION, APP_VERSION_MAJOR, APP_VERSION_MINOR);
+
+    
     led1_off();
 }
 
@@ -315,14 +373,15 @@ main(void)
 
 	ioinit();
 
-	printf_P(PSTR("Starting main loop\n"));
-
     while(1)
     {
 		// 80 Hz timer
 		if (g_timer80hz_set)
 		{
 			g_timer80hz_set = 0;
+            // turn off led2 if on
+            if (is_led2_on())
+                led2_off();
 		}
 
         // 2 Hz timer

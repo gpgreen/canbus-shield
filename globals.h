@@ -14,4 +14,6 @@ enum canbus_state {ACTIVE,
 
 extern enum canbus_state g_state;
 
+extern void panic(void);
+
 #endif  // GLOBALS_H_

@@ -20,9 +20,9 @@ cmake_minimum_required(VERSION 2.8)
 # tools to be used for programming the AVR
 ##################################################################################
 set(AVR_UPLOADTOOL avrdude)
-set(AVR_PROGRAMMER stk500v1)
+set(AVR_PROGRAMMER arduino)
 set(AVR_UPLOADTOOL_PORT /dev/ttyACM0)
-set(AVR_UPLOADTOOL_OPTIONS -F)
+set(AVR_UPLOADTOOL_OPTIONS "-C/home/ggreen/apps/arduino-1.8.15/hardware/tools/avr/etc/avrdude.conf")
 # AVR and fuses needs to be set
 set(AVR_MCU atmega328p)
 set(AVRDUDE_MCU m328p)

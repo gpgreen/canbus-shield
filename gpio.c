@@ -53,4 +53,9 @@ led2_toggle(void)
 {
 	PORTD ^= _BV(PD7);
 }
+int
+is_led2_on(void)
+{
+    return (PIND & _BV(PD7)) == _BV(PD7);
+}
 

@@ -14,7 +14,7 @@
  */
 #define HARDWARE_REVISION               1
 #define APP_VERSION_MAJOR               0
-#define APP_VERSION_MINOR               1
+#define APP_VERSION_MINOR               2
 
 /*-----------------------------------------------------------------------*/
 
@@ -35,8 +35,11 @@
 /*#define CANDEBUG                        1*/
 
 /*-----------------------------------------------------------------------*/
+// use timestamps in CAN
+#define CAN_TIMESTAMP                   1
+
 #define MCP2515FILTER                   1
-/* MCP clock */
+/* MCP2515 clock */
 #define MCP2515_16MHZ                   1
 
 /* FIFO lengths */
