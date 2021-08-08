@@ -33,6 +33,7 @@
 /*#define MCPDEBUG                        1*/
 /*#define CANSERIALDEBUG                  1*/
 /*#define CANDEBUG                        1*/
+/*#define NMEA2000DEBUG                   1*/
 
 /*-----------------------------------------------------------------------*/
 // use timestamps in CAN
@@ -41,6 +42,11 @@
 #define MCP2515FILTER                   1
 /* MCP2515 clock */
 #define MCP2515_16MHZ                   1
+
+#define NMEA2000_PREFERRED_SOURCE_ADDRESS 5
+
+/* nmea2000 map size */
+#define NMEA2000_ADDR_MAP_SZ            10
 
 /* FIFO lengths */
 #define MCP_RECVBUFLEN                  10
@@ -60,6 +66,12 @@
 #define P_MOSI                          3
 #define P_MISO                          4
 #define P_SCK                           5
+
+/* joystick pin definitions */
+#define DDR_JOYSTICK_CLICK              DDRC
+#define PORT_JOYSTICK_CLICK             PORTC
+#define PIN_JOYSTICK_CLICK              PINC
+#define P_JOYSTICK_CLICK                4
 
 /*-----------------------------------------------------------------------*/
 

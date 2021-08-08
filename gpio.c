@@ -3,6 +3,13 @@
 
 #include "gpio.h"
 
+debounce_pin_t joystick_click = {
+    .ddr = &DDR_JOYSTICK_CLICK,
+    .port = &PORT_JOYSTICK_CLICK,
+    .pin = &PIN_JOYSTICK_CLICK,
+    .pin_no = P_JOYSTICK_CLICK,
+};
+
 void gpio_setup(void)
 {
 	// setup the two leds
@@ -15,6 +22,7 @@ void gpio_setup(void)
 	DDR_CANCS |= _BV(P_CANCS);
 	PORT_CANCS |= _BV(P_CANCS);
 
+    debounce_init(&joystick_click, 1);
 }
 
 /*-----------------------------------------------------------------------*/

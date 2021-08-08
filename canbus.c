@@ -47,6 +47,8 @@
 #include "mcp2515.h"
 #include "fifo.h"
 #include "canserial.h"
+#include "debounce.h"
+#include "nmea2000.h"
 
 // io
 static FILE uartstream = FDEV_SETUP_STREAM(uart_putchar, uart_getchar,
@@ -85,6 +87,8 @@ static uint8_t nmea2000_name[8] = {
 void timer1_compareA(void)
 {
     g_timer80hz_set = 1;
+
+    debounce(&joystick_click);
     
     static int count = 0;
     if (++count == 40)
@@ -188,6 +192,11 @@ struct can_serial g_can_serial = {
 	.can_device_command = can_device_command,
     .can_handle_error = canbus_can_error,
 };
+
+/*-----------------------------------------------------------------------*/
+
+// nmea2000 device
+nmea2000_dev_t nmeadev;
 
 /*-----------------------------------------------------------------------*/
 
@@ -356,6 +365,8 @@ ioinit(void)
     printf_P(PSTR("Hardware: %d Software: %d.%d\n-------------------------\n"),
              HARDWARE_REVISION, APP_VERSION_MAJOR, APP_VERSION_MINOR);
 
+    // initialize nmea2000
+    nmea2000_init(&candev, &nmeadev, nmea2000_name);
     
     led1_off();
 }
@@ -373,6 +384,8 @@ main(void)
 
 	ioinit();
 
+    int joystick = 1;
+    
     while(1)
     {
 		// 80 Hz timer
@@ -406,14 +419,28 @@ main(void)
 			uint8_t status = CAN_OK;
 			for (int i=0; i<4 && status == CAN_OK; ++i) {
 				status = can_read_message(&candev, &incoming);
-				if (status == CAN_OK)
+				if (status == CAN_OK) {
 					// do something with any incoming msgs
 					canserial_handle_recv_message(&g_can_serial, &incoming);
+                    nmea2000_can_message_received(&nmeadev, &incoming);
+                }
 			}
         }
         
 		// check for input
 		handle_uart();
+
+        // do nmea2000 stuff
+        nmea2000_periodic_handling(&nmeadev);
+        
+        // check for joystick click
+        if (joystick && debounce_is_low(&joystick_click)) {
+            joystick = 0;
+        } else if (!joystick && debounce_is_high(&joystick_click)) {
+            joystick = 1;
+            printf_P(PSTR("Joystick clicked\n"));
+            nmea2000_start_claim(&nmeadev);
+        }
     }
     return 0;
 }
